@@ -13,3 +13,5 @@ Docs:
 - Alpha Vantage wrapper: https://github.com/RomelTorres/alpha_vantage
 
 - Web Scraping: https://www.freecodecamp.org/news/how-to-scrape-websites-with-python-and-beautifulsoup-5946935d93fe/amp/
+
+- Patterns: http://thepatternsite.com/chartpatterns.html

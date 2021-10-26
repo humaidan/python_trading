@@ -30,6 +30,11 @@ df = pd.DataFrame()
 df['Price'] = ohlcv['Adj Close']
 df['slope'] = slope(ohlcv, 5)
 
-df.plot()
+print(df['slope'])
+
+df.plot(title='XRP Slope', subplots=True, style=['blue', 'green'],
+            sharex=True, sharey=False, legend=False)
+for ax in plt.gcf().axes:
+    ax.legend(loc=1)
 
 plt.show()
