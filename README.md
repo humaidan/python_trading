@@ -15,3 +15,8 @@ Docs:
 - Web Scraping: https://www.freecodecamp.org/news/how-to-scrape-websites-with-python-and-beautifulsoup-5946935d93fe/amp/
 
 - Patterns: http://thepatternsite.com/chartpatterns.html
+
+Machine Learning:
+
+- https://www.youtube.com/watch?v=5idlJU7pUSA
+- https://www.youtube.com/watch?v=QIUxPv5PJOY
