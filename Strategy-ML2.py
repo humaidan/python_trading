@@ -5,7 +5,6 @@
 import math
 from numpy.core.einsumfunc import einsum_path
 import pandas_datareader as pdr
-import pandas as pd
 import numpy as np
 import datetime
 from sklearn.preprocessing import MinMaxScaler
@@ -145,25 +144,67 @@ plt.plot(valid[['Close', 'Predict']])
 plt.legend(['Train', 'Actuals', 'Prediction'], loc='lower right')
 plt.figtext(0.0,0.0, 'rmse=' + str(math.ceil(rmse)), fontsize=8, va="top", ha="left")
 
-plt.savefig('output/ML1-'+ticker+'.png')
+plt.savefig('output/ML2-'+ticker+'-1.png')
 #plt.show()
 
 
 ###### Predict tomorrows' closing price
-last_60_days = data[-60:].values
-last_60_days_scaled = scaler.transform(last_60_days)
 
-x_test = []
-x_test.append(last_60_days_scaled)
-x_test = np.array(x_test)
-x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+# last_60_days = data[-60:].values
+# last_60_days_scaled = scaler.transform(last_60_days)
 
-pred_price = model.predict(x_test)
-pred_price = scaler.inverse_transform(pred_price)
+# x_test = []
+# x_test.append(last_60_days_scaled)
+# x_test = np.array(x_test)
+# x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 
-newday = data.index[-1] + datetime.timedelta(1)
-print(str(newday) + '  --> $' + str(pred_price[0][0]))
+# pred_price = model.predict(x_test)
+# pred_price = scaler.inverse_transform(pred_price)
 
-new_df = pd.DataFrame()
+# print('Tomorrows Price: $' + str(pred_price))
 
+
+##### Predict next 365 days
+new_df = data
+
+
+for i in range(0, 365):
+  
+  newrow = new_df.iloc[-1]
+  newday = new_df.index[-1] + datetime.timedelta(1)
+  newrow.name = newday
+  new_df = new_df.append(newrow)
+
+  last_60_days = new_df[-60:].values
+  last_60_days_scaled = scaler.transform(last_60_days)
+
+  x_test = []
+  x_test.append(last_60_days_scaled)
+  x_test = np.array(x_test)
+  x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+
+  pred_price = model.predict(x_test)
+  pred_price = scaler.inverse_transform(pred_price)
+
+  new_df.iloc[-1,-1] = pred_price[0][0]
+
+
+##### Plot the data
+current = data
+future = new_df.iloc[-365]
+
+new_df.to_csv('output/Strategy-ML2.csv')
+
+#Visualize the data
+plt.figure(figsize=(16,8))
+plt.title(ticker[0:3] + ' LSTM Model')
+plt.xlabel('Date', fontsize=18)
+plt.ylabel('Close Price ($)', fontsize=18)
+plt.plot(current['Close'])
+plt.plot(future['Close'])
+plt.legend(['Actuals', 'Prediction'], loc='lower right')
+plt.figtext(0.0,0.0, 'rmse=' + str(math.ceil(rmse)), fontsize=8, va="top", ha="left")
+
+plt.savefig('output/ML2-'+ticker+'-2.png')
+plt.show()
 
