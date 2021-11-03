@@ -95,7 +95,8 @@ model.add( Dense(1) )
 model.compile(optimizer='adam', loss='mean_squared_error')
 
 #Train the model
-model.fit(x_train, y_train, batch_size=1, epochs=1)
+#model.fit(x_train, y_train, batch_size=1, epochs=1)
+model.fit(x_train, y_train, batch_size=32, epochs=2)
 
 
 
@@ -165,16 +166,16 @@ plt.savefig('output/ML2-'+ticker+'-1.png')
 # print('Tomorrows Price: $' + str(pred_price))
 
 
-##### Predict next 365 days
+##### Predict next 100 days
 new_df = data
 
 
-print('start point..')
-print(new_df.tail(10))
-print('Press any key ...')
-sys.stdin.read(1)
+# print('start point..')
+# print(new_df.tail(10))
+# print('Press any key ...')
+# sys.stdin.read(1)
 
-for i in range(0, 365):
+for i in range(0, 100):
   
   newrow = new_df.iloc[-1]
   newday = new_df.index[-1] + datetime.timedelta(1)
@@ -194,16 +195,16 @@ for i in range(0, 365):
 
   new_df.iloc[-1,-1] = pred_price[0][0]
 
-  print()
-  print('i=', i)
-  print(new_df.tail(10))
-  print('Press any key ...')
-  sys.stdin.read(1)
-
+  # print()
+  # print('i=', i)
+  # print(new_df.tail(10))
+  # print('Press any key ...')
+  # sys.stdin.read(1)
+print(new_df[-100:])
 
 ##### Plot the data
 current = data
-future = new_df.iloc[-365]
+future = new_df.iloc[-100]
 
 new_df.to_csv('output/Strategy-ML2.csv')
 

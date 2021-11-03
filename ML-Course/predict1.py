@@ -15,7 +15,7 @@ ticker = 'BTC-USD'
 
 print('Downloading ' + ticker + ' data ...')
 df = pdr.data.get_data_yahoo(ticker,
-            datetime.date.today()-datetime.timedelta(365),
+            datetime.date.today()-datetime.timedelta(365*7),
             datetime.date.today())
 
 #print(df.describe())
@@ -24,13 +24,13 @@ Hi = np.array([df.iloc[:,0]])
 Low = np.array([df.iloc[:,1]])
 Close = np.array([df.iloc[:,3]])
 
-plt.figure(1)
-H, = plt.plot(Hi[0,:])
-L, = plt.plot(Low[0,:])
-C, = plt.plot(Close[0,:])
+# plt.figure(1)
+# H, = plt.plot(Hi[0,:])
+# L, = plt.plot(Low[0,:])
+# C, = plt.plot(Close[0,:])
 
-plt.legend([H,L,C], ['High', 'Low', 'Close'])
-plt.show(block=False)
+# plt.legend([H,L,C], ['High', 'Low', 'Close'])
+# plt.show(block=False)
 
 X = np.concatenate([Hi,Low], axis=0)
 
@@ -56,15 +56,19 @@ model.add( Dense(1) )
 
 model.compile(loss='mean_squared_error', optimizer='rmsprop', metrics=[metrics.mae])
 
-#model.fit(X, Y, epochs=100, batch_size=1, verbose=2)
-model.fit(X, Y, epochs=15, batch_size=1, verbose=2)
+#model.fit(X, Y, epochs=100, batch_size=1, verbose=1)
+#model.fit(X, Y, epochs=15, batch_size=1, verbose=2)
+model.fit(X, Y, epochs=100, batch_size=1)
 
 Predict=model.predict(X, verbose=1)
-#print(Predict)
+print(Predict)
 
-plt.figure(2)
-plt.scatter(Y, Predict)
-plt.show(block=False)
+rmse = np.sqrt( np.mean( Predict - Y)**2 )
+print('RMSE=', rmse)
+
+# plt.figure(2)
+# plt.scatter(Y, Predict)
+# plt.show(block=False)
 
 plt.figure(3)
 Test, = plt.plot(Y)
