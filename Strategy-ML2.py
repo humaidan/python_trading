@@ -2,6 +2,7 @@
 #               to predict the closing prices of crypto (BTC) using the past 60 days price
 
 #import the libraries
+import sys
 import math
 from numpy.core.einsumfunc import einsum_path
 import pandas_datareader as pdr
@@ -22,7 +23,7 @@ print('Downloading ' + ticker + ' data ...')
 df = pdr.data.get_data_yahoo(ticker,
             datetime.date.today()-datetime.timedelta(365*7),
             datetime.date.today())
-print('[Done]')
+
 # print(df)
 # print(df.shape)
 
@@ -168,6 +169,11 @@ plt.savefig('output/ML2-'+ticker+'-1.png')
 new_df = data
 
 
+print('start point..')
+print(new_df.tail(10))
+print('Press any key ...')
+sys.stdin.read(1)
+
 for i in range(0, 365):
   
   newrow = new_df.iloc[-1]
@@ -187,6 +193,12 @@ for i in range(0, 365):
   pred_price = scaler.inverse_transform(pred_price)
 
   new_df.iloc[-1,-1] = pred_price[0][0]
+
+  print()
+  print('i=', i)
+  print(new_df.tail(10))
+  print('Press any key ...')
+  sys.stdin.read(1)
 
 
 ##### Plot the data
