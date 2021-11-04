@@ -1,188 +1,236 @@
-#Description: This program uses an artificial recurrent neural network called Long Short Term Memory (LSTM)
-#               to predict the closing prices of crypto (BTC) using the past 60 days price
+#Description: This program uses an LSTM model to predict weekly/monthly data based on last 60 period
+
 
 #import the libraries
-import sys
+print('Importing libraries ...')
+import requests
+import csv
+from bs4 import BeautifulSoup
 import math
 from numpy.core.einsumfunc import einsum_path
 import pandas_datareader as pdr
+import pandas as pd
 import numpy as np
 import datetime
+from dateutil.relativedelta import *
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 import matplotlib.pyplot as plt
 plt.style.use('fivethirtyeight')
 
+import warnings
+warnings.filterwarnings("ignore")
+
+num_periods_to_check = 12
+resample_freq = '5D'
+cryptoBook = []
+
+csv_date = datetime.date.today().strftime('%y%b%d')
+csv_file = 'output/ML2/cryptoBook-' + csv_date + '.csv'
+csv_cols = ['Ticker', 'LastPrice', 'Prediction', 'rmse']
+
+
+def getYahooTopCrptos(x=100):
+  tickers = []
+  x = x + 2   #account for USDT & USDSC
+
+  url = 'https://finance.yahoo.com/cryptocurrencies/?offset=0&count=' + str(x)
+  headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'}
+  page = requests.get(url, headers=headers, timeout=5) 
+  page_content = page.content
+  
+  soup = BeautifulSoup(page_content, 'html.parser')
+  
+  cells = soup.find_all('td', attrs={'aria-label': 'Symbol'})
+  for cell in cells:
+    ticker = cell.get_text()
+    if ticker!='USDT-USD' and ticker!='USDC-USD':
+      tickers.append(ticker)
+
+  return tickers
+
 
 # Download historical data for required stocks
-#ticker = 'XRP-USD'
-ticker = 'BTC-USD'
+#tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD']
+tickers = getYahooTopCrptos(200)
+#tickers = ['XRP-USD', 'ALGO-USD', 'NANO-USD', 'SFMS-USD', 'BTC-USD', 'ETH-USD']
+#tickers = tickers[-4:]  #FOR TESTING PURPOSES
 
-print('Downloading ' + ticker + ' data ...')
-df = pdr.data.get_data_yahoo(ticker,
-            datetime.date.today()-datetime.timedelta(365*7),
-            datetime.date.today())
+loop = 0
 
-# print(df)
-# print(df.shape)
+#for f in freq:
+for ticker in tickers:
 
-# plt.figure(figsize=(16,8))
-# plt.title('Close Price History')
-# plt.plot(df['Close'])
-# plt.xlabel('Date', fontsize=18)
-# plt.ylabel('Close Price USD ($)', fontsize=18)
-# plt.show()
+  print()
+  print()
+  #print('*****  [' + str(loop) + '] Processing ' + ticker + ' data ...   ******')
+  print('*****  [' + str(loop) + '] Processing ' + 
+            '\x1b[6;30;42m' + ticker + '\x1b[0m' +
+            ' data ...   ******')
+  loop = loop + 1
 
+  #print('Downloading ' + ticker + ' data ...')
+  df = pdr.data.get_data_yahoo(ticker,
+              #datetime.date.today()-datetime.timedelta(365*7),
+              '2010-01-01',
+              datetime.date.today() )
+              #interval='m')
+  #print('[Done]')
 
-#Create new dataframe with only the Close column
-data = df.filter(['Close'])
+  # endOfMonth = datetime.date.today() - relativedelta(months=+1)
+  # endOfMonth = pd.Period(endOfMonth,freq='M').end_time.date()
 
-#Convert the dataframe to numpy array
-dataset = data.values
+  # df = df[ : endOfMonth ].resample('M').mean()
+  df = df.resample(resample_freq).mean()
+  #print(df)
 
+  if len(df) < num_periods_to_check:
+    print(' ..... skipping - available data: ' + str(len(df)))
+    continue
 
-#######################   PREP THE MODEL DATA  #######################
+  #Create new dataframe with only the Close column
+  data = df.filter(['Close'])
+  #print(data)
+  print('***** Processing ' + str(df.shape[0]) + ' entries')
 
-#Get the number of rows to train the model on
-training_data_len = math.ceil(len(dataset) * .8)
+  #Convert the dataframe to numpy array
+  dataset = data.values
 
+  #######################   PREP THE MODEL DATA  #######################
 
-#Scale the data
-scaler = MinMaxScaler(feature_range=(0,1))
-scaled_data = scaler.fit_transform(dataset)
+  #Get the number of rows to train the model on
+  training_data_len = math.ceil(len(dataset) * .8)
 
-#Create the training data set
+  #Scale the data
+  scaler = MinMaxScaler(feature_range=(0,1))
+  scaled_data = scaler.fit_transform(dataset)
 
-#Create the scaled training data set
-train_data = scaled_data[0:training_data_len,:]
+  #Create the training data set
 
-#Split the data into x_train and y_train data sets
-x_train = []    #independent training variables
-y_train = []    #target variables
+  #Create the scaled training data set
+  train_data = scaled_data[0:training_data_len,:]
 
-for i in range(60, len(train_data)):
-  x_train.append(train_data[i-60:i, 0])
-  y_train.append(train_data[i, 0])
+  #Split the data into x_train and y_train data sets
+  x_train = []    #independent training variables
+  y_train = []    #target variables
 
-  # if i==61:
-  #   print('looping i=', i)
-  #   print(x_train)
-  #   print(y_train)
-  #   print()
+  for i in range(num_periods_to_check, len(train_data)):
+    x_train.append(train_data[i-num_periods_to_check:i, 0])
+    y_train.append(train_data[i, 0])
 
+  #Convert x_train & y_train to numpy arrays
+  x_train, y_train = np.array(x_train), np.array(y_train)
 
-#Convert x_train & y_train to numpy arrays
-x_train, y_train = np.array(x_train), np.array(y_train)
-
-#Reshape the data to expectation of LSTM input of 3D array (#samples, #time-steps, features)
-x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-#print(x_train)
-
-
-#######################   LSTM MODEL  #######################
-
-#Build the LSTM model
-model = Sequential()
-
-#LSTM model with 50 neurons + other layers
-model.add( LSTM(50, return_sequences=True, input_shape=(x_train.shape[1], 1)) )
-model.add( LSTM(50, return_sequences=False) )
-model.add( Dense(25) )
-model.add( Dense(1) )
-
-#Compile the model
-model.compile(optimizer='adam', loss='mean_squared_error')
-
-#Train the model
-#model.fit(x_train, y_train, batch_size=1, epochs=1)
-model.fit(x_train, y_train, batch_size=32, epochs=2)
+  #Reshape the data to expectation of LSTM input of 3D array (#samples, #time-steps, features)
+  # print('Training ' + str(x_train.shape[0]) + ' samples with ' + str(x_train.shape[1]) + ' timesteps and 1 feature .....')
+  # print(x_train)
+  x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
 
 
+  #######################   LSTM MODEL  #######################
 
-#######################  TESTING STAGE  #######################
-#Create the testing data
+  #Build the LSTM model
+  model = Sequential()
 
-#Create a new array containing scaled values for the rest of 20% of data (index from training_data_len onwards till the end)
-#not scaled 
-test_data = scaled_data[training_data_len-60:, :]
-x_test = []
-y_test = dataset[training_data_len:,:]
+  #LSTM model with 50 neurons + other layers
+  model.add( LSTM(50, return_sequences=True, input_shape=(x_train.shape[1], 1)) )
+  model.add( LSTM(50, return_sequences=False) )
+  model.add( Dense(25) )
+  model.add( Dense(1) )
 
-for i in range (60, len(test_data)):
-  x_test.append(test_data[i-60:i, 0])
+  #Compile the model
+  model.compile(optimizer='adam', loss='mean_squared_error')
 
-# Scale test data
-#Convert the data to a numpy array
-x_test = np.array(x_test)
-
-#Reshape the data
-x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
-
-#Get the model's predicted price values (for the 20% data)
-predictions = model.predict(x_test)
-# un-scale data into the same as  y_data dataset contains
-predictions = scaler.inverse_transform(predictions)
+  #Train the model
+  model.fit(x_train, y_train, batch_size=1, epochs=1)
 
 
-#Evaluate model - stat
-#Get the root mean squared error (RMSE)
-rmse = np.sqrt( np.mean( predictions - y_test)**2 )
-#print('RMSE=', rmse)
+  #######################  TESTING STAGE  #######################
+  #Create the testing data
+
+  #Create a new array containing scaled values for the rest of 20% of data (index from training_data_len onwards till the end)
+  #not scaled 
+  test_data = scaled_data[training_data_len-num_periods_to_check:, :]
+  x_test = []
+  y_test = dataset[training_data_len:,:]
+
+  for i in range (num_periods_to_check, len(test_data)):
+    x_test.append(test_data[i-num_periods_to_check:i, 0])
+
+  # Scale test data
+  #Convert the data to a numpy array
+  x_test = np.array(x_test)
+
+  #Reshape the data
+  x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+
+  #Get the model's predicted price values (for the 20% data)
+  predictions = model.predict(x_test)
+  # un-scale data into the same as  y_data dataset contains
+  predictions = scaler.inverse_transform(predictions)
 
 
-# Plot the data
-train = data[:training_data_len]
-valid = data[training_data_len:]
-valid['Predict'] = predictions
-
-#Visualize the data
-plt.figure(figsize=(16,8))
-plt.title(ticker[0:3] + ' LSTM Model')
-plt.xlabel('Date', fontsize=18)
-plt.ylabel('Close Price ($)', fontsize=18)
-plt.plot(train['Close'])
-plt.plot(valid[['Close', 'Predict']])
-plt.legend(['Train', 'Actuals', 'Prediction'], loc='lower right')
-plt.figtext(0.0,0.0, 'rmse=' + str(math.ceil(rmse)), fontsize=8, va="top", ha="left")
-
-plt.savefig('output/ML2-'+ticker+'-1.png')
-#plt.show()
+  #Evaluate model - stat
+  #Get the root mean squared error (RMSE)
+  rmse = np.sqrt( np.mean( predictions - y_test)**2 )
+  print('RMSE=', rmse)
 
 
-###### Predict tomorrows' closing price
+  # Plot the data
+  train = data[:training_data_len]
+  valid = data[training_data_len:]
+  valid['Predict'] = predictions
 
-# last_60_days = data[-60:].values
-# last_60_days_scaled = scaler.transform(last_60_days)
+  #Visualize the data
+  plt.figure(figsize=(16,8))
+  plt.title(ticker[0:3] + ' LSTM Model')
+  plt.xlabel('Date', fontsize=18)
+  plt.ylabel('Close Price ($)', fontsize=18)
+  plt.plot(train['Close'])
+  plt.plot(valid[['Close', 'Predict']])
+  plt.legend(['Train', 'Actuals', 'Prediction'], loc='lower right')
+  #plt.figtext(0.0,0.0, 'rmse=' + str(math.ceil(rmse)), fontsize=8, va="top", ha="left")
 
-# x_test = []
-# x_test.append(last_60_days_scaled)
-# x_test = np.array(x_test)
-# x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
-
-# pred_price = model.predict(x_test)
-# pred_price = scaler.inverse_transform(pred_price)
-
-# print('Tomorrows Price: $' + str(pred_price))
-
-
-##### Predict next 100 days
-new_df = data
+  plt.savefig('output/ML2/' + ticker + '-' + csv_date + '.png')
+  #plt.show()
 
 
-# print('start point..')
-# print(new_df.tail(10))
-# print('Press any key ...')
-# sys.stdin.read(1)
 
-for i in range(0, 100):
+  ##### Before Prediction re-train on full dataset
+  #training_data_len = math.ceil(len(dataset) )
+
+  scaler = MinMaxScaler(feature_range=(0,1))
+  scaled_data = scaler.fit_transform(dataset)
+
+  train_data = scaled_data #[0:training_data_len,:]
   
-  newrow = new_df.iloc[-1]
-  newday = new_df.index[-1] + datetime.timedelta(1)
-  newrow.name = newday
-  new_df = new_df.append(newrow)
+  x_train = []    #independent training variables
+  y_train = []    #target variables
 
-  last_60_days = new_df[-60:].values
+  for i in range(num_periods_to_check, len(train_data)):
+    x_train.append(train_data[i-num_periods_to_check:i, 0])
+    y_train.append(train_data[i, 0])
+    
+  x_train, y_train = np.array(x_train), np.array(y_train)
+  x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
+
+  #Build the LSTM model
+  model = Sequential()
+  
+  model.add( LSTM(50, return_sequences=True, input_shape=(x_train.shape[1], 1)) )
+  model.add( LSTM(50, return_sequences=False) )
+  model.add( Dense(25) )
+  model.add( Dense(1) )
+  
+  model.compile(optimizer='adam', loss='mean_squared_error')
+  
+  model.fit(x_train, y_train, batch_size=1, epochs=1)
+
+  ### Model is re-trained now
+
+  ###### Predict next month closing price
+  last_60_days = data[-num_periods_to_check:].values
   last_60_days_scaled = scaler.transform(last_60_days)
 
   x_test = []
@@ -193,31 +241,33 @@ for i in range(0, 100):
   pred_price = model.predict(x_test)
   pred_price = scaler.inverse_transform(pred_price)
 
-  new_df.iloc[-1,-1] = pred_price[0][0]
+  newday = data.index[-1] + datetime.timedelta(7)
 
-  # print()
-  # print('i=', i)
-  # print(new_df.tail(10))
-  # print('Press any key ...')
-  # sys.stdin.read(1)
-print(new_df[-100:])
+  # endOfMonth = data.index[-1] + relativedelta(months=+1)
+  # endOfMonth = pd.Period(endOfMonth,freq='M').end_time.date()
+  # newday = endOfMonth
 
-##### Plot the data
-current = data
-future = new_df.iloc[-100]
+  # print('data:')
+  # print(data)
+  print(ticker + ': ' + str(newday) + '  --> $' + str(pred_price[0][0]))
+  
+  cryptoBook.append(
+    {
+      'Ticker' : ticker,
+      'LastPrice' : float(last_60_days[-1]),
+      'Prediction' : float(pred_price),
+      'rmse' : rmse
+      }
+  )
 
-new_df.to_csv('output/Strategy-ML2.csv')
-
-#Visualize the data
-plt.figure(figsize=(16,8))
-plt.title(ticker[0:3] + ' LSTM Model')
-plt.xlabel('Date', fontsize=18)
-plt.ylabel('Close Price ($)', fontsize=18)
-plt.plot(current['Close'])
-plt.plot(future['Close'])
-plt.legend(['Actuals', 'Prediction'], loc='lower right')
-plt.figtext(0.0,0.0, 'rmse=' + str(math.ceil(rmse)), fontsize=8, va="top", ha="left")
-
-plt.savefig('output/ML2-'+ticker+'-2.png')
-plt.show()
-
+print()
+#print(cryptoBook)
+#write results
+try:
+    with open(csv_file, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=csv_cols)
+        writer.writeheader()
+        for data in cryptoBook:
+            writer.writerow(data)
+except IOError:
+    print("I/O error")

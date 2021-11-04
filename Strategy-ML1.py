@@ -164,37 +164,3 @@ pred_price = scaler.inverse_transform(pred_price)
 newday = data.index[-1] + datetime.timedelta(1)
 print(str(newday) + '  --> $' + str(pred_price[0][0]))
 
-
-
-###### Predict after tomorrows' closing price
-last_60_days = data[-59:].values
-last_60_days = np.append(last_60_days, pred_price)
-last_60_days_scaled = scaler.transform(last_60_days)
-
-x_test = []
-x_test.append(last_60_days_scaled)
-x_test = np.array(x_test)
-x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
-
-pred_price = model.predict(x_test)
-pred_price = scaler.inverse_transform(pred_price)
-
-newday = data.index[-1] + datetime.timedelta(2)
-print(str(newday) + '  --> $' + str(pred_price[0][0]))
-
-
-###### Predict after after tomorrows' closing price
-last_60_days = data[-59:].values
-last_60_days = np.append(last_60_days, pred_price)
-last_60_days_scaled = scaler.transform(last_60_days)
-
-x_test = []
-x_test.append(last_60_days_scaled)
-x_test = np.array(x_test)
-x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
-
-pred_price = model.predict(x_test)
-pred_price = scaler.inverse_transform(pred_price)
-
-newday = data.index[-1] + datetime.timedelta(2)
-print(str(newday) + '  --> $' + str(pred_price[0][0]))
