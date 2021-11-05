@@ -4,6 +4,7 @@
 #import the libraries
 print('Importing libraries ...')
 import requests
+from pathlib import Path
 import csv
 from bs4 import BeautifulSoup
 import math
@@ -26,9 +27,13 @@ num_periods_to_check = 12
 resample_freq = '5D'
 cryptoBook = []
 
-csv_date = datetime.date.today().strftime('%y%b%d')
-csv_file = 'output/ML2/cryptoBook-' + csv_date + '.csv'
+dirpath = 'output/ML2/' + datetime.date.today().strftime('%y%m%d') + '/'
+Path(dirpath).mkdir(parents=True, exist_ok=True)
+
+csv_date = datetime.date.today().strftime('%d%b%y')
+csv_file = dirpath + 'cryptoBook-' + csv_date + '.csv'
 csv_cols = ['Ticker', 'LastPrice', 'Prediction', 'rmse']
+
 
 
 def getYahooTopCrptos(x=100):
@@ -192,7 +197,7 @@ for ticker in tickers:
   plt.legend(['Train', 'Actuals', 'Prediction'], loc='lower right')
   #plt.figtext(0.0,0.0, 'rmse=' + str(math.ceil(rmse)), fontsize=8, va="top", ha="left")
 
-  plt.savefig('output/ML2/' + ticker + '-' + csv_date + '.png')
+  plt.savefig(dirpath + ticker + '.png')
   #plt.show()
 
 
