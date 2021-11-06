@@ -16,12 +16,13 @@ plt.style.use('fivethirtyeight')
 
 
 # Download historical data for required stocks
-#ticker = 'XRP-USD'
-ticker = 'BTC-USD'
+#ticker = 'ADA-USD'
+ticker = 'ETH-USD'
 
 print('Downloading ' + ticker + ' data ...')
 df = pdr.data.get_data_yahoo(ticker,
-            datetime.date.today()-datetime.timedelta(365*7),
+            #datetime.date.today()-datetime.timedelta(365*7),
+            '2017-01-01',
             datetime.date.today())
 print('[Done]')
 # print(df)
@@ -150,6 +151,35 @@ plt.savefig('output/ML1-'+ticker+'.png')
 
 
 ###### Predict tomorrows' closing price
+
+#Before predicting re-train the model with full dataset
+training_data_len = len(dataset)
+scaler = MinMaxScaler(feature_range=(0,1))
+scaled_data = scaler.fit_transform(dataset)
+train_data = scaled_data[0:training_data_len,:]
+x_train = []    #independent training variables
+y_train = []    #target variables
+
+for i in range(60, len(train_data)):
+  x_train.append(train_data[i-60:i, 0])
+  y_train.append(train_data[i, 0])
+  
+x_train, y_train = np.array(x_train), np.array(y_train)
+x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
+
+
+model = Sequential()
+model.add( LSTM(50, return_sequences=True, input_shape=(x_train.shape[1], 1)) )
+model.add( LSTM(50, return_sequences=False) )
+model.add( Dense(25) )
+model.add( Dense(1) )
+
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+model.fit(x_train, y_train, batch_size=1, epochs=1)
+
+
+#### Tomorrow's price prediction
 last_60_days = data[-60:].values
 last_60_days_scaled = scaler.transform(last_60_days)
 
@@ -162,5 +192,6 @@ pred_price = model.predict(x_test)
 pred_price = scaler.inverse_transform(pred_price)
 
 newday = data.index[-1] + datetime.timedelta(1)
+print(str(data.index[-1]) + '  --> $' + str(data.iloc[-1,0]))
 print(str(newday) + '  --> $' + str(pred_price[0][0]))
 

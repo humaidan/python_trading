@@ -1,5 +1,5 @@
 #Description: This program uses an LSTM model to predict weekly/monthly data based on last 60 period
-
+#   intraday
 
 #import the libraries
 print('Importing libraries ...')
@@ -11,6 +11,7 @@ import math
 from numpy.core.einsumfunc import einsum_path
 import pandas_datareader as pdr
 import pandas as pd
+from alpha_vantage.cryptocurrencies import CryptoCurrencies
 import numpy as np
 import datetime
 from dateutil.relativedelta import *
@@ -23,17 +24,16 @@ plt.style.use('fivethirtyeight')
 import warnings
 warnings.filterwarnings("ignore")
 
-num_periods_to_check = 12
-resample_freq = '5D'
+num_periods_to_check = 60
+resample_freq = '4H'
 cryptoBook = []
 
-dirpath = 'output/ML2/' + datetime.date.today().strftime('%y%m%d') + '/'
+dirpath = 'output/ML3/' + datetime.datetime.now().strftime('%y%m%d-%H') + '/'
 Path(dirpath).mkdir(parents=True, exist_ok=True)
 
-csv_date = datetime.date.today().strftime('%d%b%y')
+csv_date = datetime.datetime.now().strftime('%y%m%d-%H')
 csv_file = dirpath + 'cryptoBook-' + csv_date + '.csv'
 csv_cols = ['Ticker', 'LastPrice', 'Prediction', 'rmse', 'chng']
-
 
 
 def getYahooTopCrptos(x=100):
@@ -58,9 +58,10 @@ def getYahooTopCrptos(x=100):
 
 # Download historical data for required stocks
 #tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD']
-tickers = getYahooTopCrptos(200)
+#tickers = getYahooTopCrptos(200)
+tickers = getYahooTopCrptos(100)
 #tickers = ['XRP-USD', 'ALGO-USD', 'NANO-USD', 'SFMS-USD', 'BTC-USD', 'ETH-USD']
-#tickers = tickers[-4:]  #FOR TESTING PURPOSES
+tickers = tickers[10, 50, 75, 90]  #FOR TESTING PURPOSES
 
 loop = 0
 
@@ -82,13 +83,24 @@ for ticker in tickers:
               datetime.date.today() )
               #interval='m')
   #print('[Done]')
+   
+  cc = CryptoCurrencies(key='PEQK1ONXGQXOBF3X', output_format='pandas')
+  df, meta_data = cc.get_digital_currency_daily(symbol='BTC', market='CNY')
+
+  df = df.rename({
+              '1b. open (USD)': 'Open', 
+              '2b. high (USD)': 'High',
+              '3b. low (USD)': 'Low',
+              '4b. close (USD)': 'Close',
+              '5. volume': 'Volume'
+              }, axis=1)
 
   # endOfMonth = datetime.date.today() - relativedelta(months=+1)
   # endOfMonth = pd.Period(endOfMonth,freq='M').end_time.date()
 
   # df = df[ : endOfMonth ].resample('M').mean()
   df = df.resample(resample_freq).mean()
-  #print(df)
+  print(df)
 
   if len(df) < num_periods_to_check:
     print(' ..... skipping - available data: ' + str(len(df)))
@@ -258,13 +270,11 @@ for ticker in tickers:
   
   cryptoBook.append(
     {
-      'Ticker' : ticker,
-      'LastPrice' : float(last_60_days[-1]),
-      'Prediction' : float(pred_price),
-      'rmse' : rmse,
-      'chng': rmse==0 
-                    if (float(last_60_days[-1])-float(pred_price))/float(last_60_days[-1]) 
-                    else 0
+      'Ticker': ticker,
+      'LastPrice': float(last_60_days[-1]),
+      'Prediction': float(pred_price),
+      'rmse': rmse,
+      'chng': ( float(last_60_days[-1]) - float(pred_price) ) / float(last_60_days[-1])
       }
   )
 
